@@ -63,7 +63,9 @@ This script prevents typing beyond a specified character limit in =mini*.org= fi
 (add-hook 'org-mode-hook #'my/org-mini-setup)
 #+end_src
 
-** Auto-insert template
+** Additional
+
+*** Auto-insert Template
 Auto-insert the template in files with their first name as *mini* with org file type.
 #+begin_src elisp
 (auto-insert-mode 1)
@@ -87,11 +89,11 @@ Auto-insert the template in files with their first name as *mini* with org file 
 #+end_src
 ** Features
 
-- **Hard character limit**: Prevents exceeding 4000 characters (customizable via =my/mini-max-chars=)
-- **Paste protection**: Automatically trims pasted content that would exceed the limit
-- **Visual indicators**: Shows fill-column indicator at 72 characters with auto-fill mode enabled
-- **Template automation**: Auto-inserts structured headers with metadata fields
-- **File pattern matching**: Automatically activates for files matching =mini*.org= pattern
+- *Hard character limit*: Prevents exceeding 4000 characters (customizable via =my/mini-max-chars=)
+- *Paste protection*: Automatically trims pasted content that would exceed the limit
+- *Visual indicators*: Shows fill-column indicator at 72 characters with auto-fill mode enabled
+- *Template automation*: Auto-inserts structured headers with metadata fields
+- *File pattern matching*: Automatically activates for files matching =mini*.org= pattern
 
 ** Usage
 
