@@ -1,0 +1,101 @@
+#+TITLE: Mini Essays
+
+#+BEGIN_QUOTE
+Mini essays, also called microthemes, a form of low-stakes writing, are very short essays, sometimes as short as a paragraph.
+
+-  Texas A&M University University Writing Center
+#+END_QUOTE
+
+** Overview
+This Emacs package enforces character limits for mini-essay writing in Org-mode files.
+
+** Script
+This script prevents typing beyond a specified character limit in =mini*.org= files. The maximum allowed character limit is 4000 but can be easily adjusted according to user preference
+#+begin_src emacs-lisp
+(defvar my/mini-max-chars 4000)
+
+(define-minor-mode my/mini-hard-limit-mode
+  "Prevent inserting beyond `my/mini-max-chars`."
+  :init-value nil
+  (if my/mini-hard-limit-mode
+      (progn
+        (add-hook 'post-self-insert-hook #'my/mini--enforce-limit nil t)
+        (advice-add 'yank :around #'my/mini--yank-guard)
+        (advice-add 'yank-pop :around #'my/mini--yank-guard))
+    (remove-hook 'post-self-insert-hook #'my/mini--enforce-limit t)
+    (advice-remove 'yank #'my/mini--yank-guard)
+    (advice-remove 'yank-pop #'my/mini--yank-guard)))
+
+(defun my/mini--over-limit-p () (> (buffer-size) my/mini-max-chars))
+
+(defun my/mini--enforce-limit ()
+  (when (and (derived-mode-p 'org-mode)
+             (buffer-file-name)
+             (string-match-p "/\\?\\|\\`" (buffer-name)) ; dummy guard; replaced below
+             (string-match-p "\\(?:/\\|\\`\\)mini[^/]*\\.org\\'" (buffer-file-name))
+             (my/mini--over-limit-p))
+    (let ((inhibit-read-only t) (inhibit-modification-hooks t))
+      (undo-boundary)
+      (backward-delete-char-untabify 1)
+      (message "Limit %d chars reached" my/mini-max-chars))))
+
+(defun my/mini--yank-guard (orig-fun &rest args)
+  (if (and (derived-mode-p 'org-mode)
+           (buffer-file-name)
+           (string-match-p "\\(?:/\\|\\`\\)mini[^/]*\\.org\\'" (buffer-file-name)))
+      (let ((before (buffer-size)))
+        (apply orig-fun args)
+        (when (> (buffer-size) my/mini-max-chars)
+          (let ((excess (- (buffer-size) my/mini-max-chars)))
+            (delete-region (- (point) excess) (point))
+            (message "Trimmed yank to %d chars" my/mini-max-chars))))
+    (apply orig-fun args)))
+
+(defun my/org-mini-setup ()
+  (when (and (derived-mode-p 'org-mode)
+             (buffer-file-name)
+             (string-match-p "\\(?:/\\|\\`\\)mini[^/]*\\.org\\'" (buffer-file-name)))
+    (setq-local fill-column 72)
+    (auto-fill-mode 1)
+    (display-fill-column-indicator-mode 1)
+    (my/mini-hard-limit-mode 1)))
+
+(add-hook 'org-mode-hook #'my/org-mini-setup)
+#+end_src
+
+** Auto-insert template
+Auto-insert the template in files with their first name as *mini* with org file type.
+#+begin_src elisp
+(auto-insert-mode 1)
+(setq auto-insert-query nil)
+
+(define-skeleton my/mini-org-skeleton
+  "Header/template for new mini*.org files."
+  nil
+  "#+title: " (file-name-base (or (buffer-file-name) (buffer-name))) "\n"
+  "#+author: " user-full-name "\n"
+  "#+date: " (format-time-string "%Y-%m-%d") "\n"
+  "#+options: toc:nil num:nil\n"
+  "#+property: reference: " (skeleton-read "Reference (URL, ID, or note): ") "\n"
+  "\n"
+  "* Draft\n"
+  "\n")
+
+(add-to-list 'auto-insert-alist
+             '(("\\`\\(.*/\\)?mini[^/]*\\.org\\'" . "mini org")
+               . my/mini-org-skeleton))
+#+end_src
+** Features
+
+- **Hard character limit**: Prevents exceeding 4000 characters (customizable via =my/mini-max-chars=)
+- **Paste protection**: Automatically trims pasted content that would exceed the limit
+- **Visual indicators**: Shows fill-column indicator at 72 characters with auto-fill mode enabled
+- **Template automation**: Auto-inserts structured headers with metadata fields
+- **File pattern matching**: Automatically activates for files matching =mini*.org= pattern
+
+** Usage
+
+1. Add the code to your Emacs configuration
+2. Create or open any file named =mini*.org=
+3. The character limit and visual guides will activate automatically
+4. Write concise essays within the enforced boundaries
