@@ -1,3 +1,6 @@
+#+BEGIN_HTML
+<img src="https://www.gnu.org/software/emacs/images/emacs.png" alt="Emacs Logo" width="80" height="80" align="right">
+#+END_HTML
 #+TITLE: Mini Essays
 
 #+BEGIN_QUOTE
