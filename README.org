@@ -1,106 +1,275 @@
 #+BEGIN_HTML
-<img src="https://www.gnu.org/software/emacs/images/emacs.png" alt="Emacs Logo" width="80" height="80" align="right">
+<img src="https://www.gnu.org/software/emacs/images/emacs.png" alt="Emacs Logo" width="70" height="70" align="right">
 #+END_HTML
-#+TITLE: Mini Essays
+
+* Overview
+
+=mini-essays-mode= is an Emacs minor mode for focused, constraint-based writing in Org-mode. Inspired by the pedagogical concept of *microthemes* and *mini-essays*, this mode enforces strict character or word limits to encourage concise, deliberate writing.
 
 #+BEGIN_QUOTE
-Mini essays, also called microthemes, a form of low-stakes writing, are very short essays, sometimes as short as a paragraph.
-
--  Texas A&M University University Writing Center
+"Mini essays, also called microthemes, a form of low-stakes writing, are very short essays, sometimes as short as a paragraph."
+— Texas A&M University Writing Center
 #+END_QUOTE
 
-** Overview
-This Emacs package enforces character limits for mini-essay writing in Org-mode files.
+** Why Mini Essays?
 
-** Script
-This script prevents typing beyond a specified character limit in =mini*.org= files. The maximum allowed character limit is 4000 but can be easily adjusted according to user preference
-#+begin_src emacs-lisp
-(defvar my/mini-max-chars 4000)
+- *Focused thinking*: Constraints force clarity and precision
+- *Low-stakes practice*: Quick iterations without overwhelming commitment
+- *Skill building*: Develops editing discipline and idea distillation
+- *Academic utility*: Perfect for thesis statements, abstracts, or response papers
 
-(define-minor-mode my/mini-hard-limit-mode
-  "Prevent inserting beyond `my/mini-max-chars`."
-  :init-value nil
-  (if my/mini-hard-limit-mode
-      (progn
-        (add-hook 'post-self-insert-hook #'my/mini--enforce-limit nil t)
-        (advice-add 'yank :around #'my/mini--yank-guard)
-        (advice-add 'yank-pop :around #'my/mini--yank-guard))
-    (remove-hook 'post-self-insert-hook #'my/mini--enforce-limit t)
-    (advice-remove 'yank #'my/mini--yank-guard)
-    (advice-remove 'yank-pop #'my/mini--yank-guard)))
+* Features
 
-(defun my/mini--over-limit-p () (> (buffer-size) my/mini-max-chars))
+** Hard Limits with Enforcement
+- Prevents typing or pasting beyond configured character/word limits
+- Automatic trimming of excessive pasted content
+- Real-time feedback when approaching limits
 
-(defun my/mini--enforce-limit ()
-  (when (and (derived-mode-p 'org-mode)
-             (buffer-file-name)
-             (string-match-p "/\\?\\|\\`" (buffer-name)) ; dummy guard; replaced below
-             (string-match-p "\\(?:/\\|\\`\\)mini[^/]*\\.org\\'" (buffer-file-name))
-             (my/mini--over-limit-p))
-    (let ((inhibit-read-only t) (inhibit-modification-hooks t))
-      (undo-boundary)
-      (backward-delete-char-untabify 1)
-      (message "Limit %d chars reached" my/mini-max-chars))))
+** Live Visual Feedback
+- Character/word counter displayed in mode line: =mini.org [1523/4000 chars]=
+- Color-coded warnings:
+  - 🟠 *Orange*: Warning zone (80-94%)
+  - 🔴 *Red*: Critical zone (95-100%)
 
-(defun my/mini--yank-guard (orig-fun &rest args)
-  (if (and (derived-mode-p 'org-mode)
-           (buffer-file-name)
-           (string-match-p "\\(?:/\\|\\`\\)mini[^/]*\\.org\\'" (buffer-file-name)))
-      (let ((before (buffer-size)))
-        (apply orig-fun args)
-        (when (> (buffer-size) my/mini-max-chars)
-          (let ((excess (- (buffer-size) my/mini-max-chars)))
-            (delete-region (- (point) excess) (point))
-            (message "Trimmed yank to %d chars" my/mini-max-chars))))
-    (apply orig-fun args)))
+** Flexible Limit Profiles
+Pre-configured profiles for different writing contexts:
+- *Micro*: 500 characters
+- *Mini*: 2000 characters
+- *Short*: 4000 characters (default)
+- *Medium*: 8000 characters
 
-(defun my/org-mini-setup ()
-  (when (and (derived-mode-p 'org-mode)
-             (buffer-file-name)
-             (string-match-p "\\(?:/\\|\\`\\)mini[^/]*\\.org\\'" (buffer-file-name)))
-    (setq-local fill-column 72)
-    (auto-fill-mode 1)
-    (display-fill-column-indicator-mode 1)
-    (my/mini-hard-limit-mode 1)))
+Switch between profiles instantly with =C-c m p=
 
-(add-hook 'org-mode-hook #'my/org-mini-setup)
-#+end_src
+** Intelligent Templates
+Auto-insert structured Org headers for new =mini*.org= files:
+- Title, author, and date metadata
+- Reference tracking property
+- Configurable starting structure
 
-** Additional
+** Export with Statistics
+Generate completion reports with:
+- Total word and character counts
+- Estimated reading time
+- Completion timestamp
 
-*** Auto-insert Template
-Auto-insert the template in files with their first name as *mini* with org file type.
-#+begin_src elisp
-(auto-insert-mode 1)
-(setq auto-insert-query nil)
+** Dual Limit Modes
+Toggle between character-based and word-based limits with =C-c m t=
 
-(define-skeleton my/mini-org-skeleton
-  "Header/template for new mini*.org files."
-  nil
-  "#+title: " (file-name-base (or (buffer-file-name) (buffer-name))) "\n"
-  "#+author: " user-full-name "\n"
-  "#+date: " (format-time-string "%Y-%m-%d") "\n"
-  "#+options: toc:nil num:nil\n"
-  "#+property: reference: " (skeleton-read "Reference (URL, ID, or note): ") "\n"
-  "\n"
-  "* Draft\n"
-  "\n")
+* Installation
 
-(add-to-list 'auto-insert-alist
-             '(("\\`\\(.*/\\)?mini[^/]*\\.org\\'" . "mini org")
-               . my/mini-org-skeleton))
-#+end_src
-** Features
+** Manual Installation
 
-- *Hard character limit*: Prevents exceeding 4000 characters (customizable via =my/mini-max-chars=)
-- *Paste protection*: Automatically trims pasted content that would exceed the limit
-- *Visual indicators*: Shows fill-column indicator at 72 characters with auto-fill mode enabled
-- *Template automation*: Auto-inserts structured headers with metadata fields
-- *File pattern matching*: Automatically activates for files matching =mini*.org= pattern
+1. Download =mini-essays.el= to your Emacs load path:
+   #+BEGIN_SRC shell
+   git clone https://github.com/D4lj337/Mini-essays.git ~/.emacs.d/lisp/mini-essays
+   #+END_SRC
 
-** Usage
+2. Add to your Emacs configuration:
+   #+BEGIN_SRC emacs-lisp
+   (add-to-list 'load-path "~/.emacs.d/lisp/mini-essays")
+   (require 'mini-essays)
+   
+   ;; Auto-enable for mini*.org files
+   (add-hook 'org-mode-hook #'mini-essays-setup)
+   
+   ;; Enable auto-insert templates
+   (mini-essays-setup-auto-insert)
+   #+END_SRC
 
-1. Add the code to your Emacs configuration
-2. Create or open any file named =mini*.org=
-3. The character limit and visual guides will activate automatically
-4. Write concise essays within the enforced boundaries
+** use-package
+
+#+BEGIN_SRC emacs-lisp
+(use-package mini-essays
+  :load-path "~/.emacs.d/lisp/mini-essays"
+  :hook (org-mode . mini-essays-setup)
+  :custom
+  (mini-essays-max-chars 4000)
+  (mini-essays-fill-column 72))
+
+;; Setup auto-insert separately
+(with-eval-after-load 'mini-essays
+  (mini-essays-setup-auto-insert))
+#+END_SRC
+
+** Straight.el
+
+#+BEGIN_SRC emacs-lisp
+(use-package mini-essays
+  :straight (:host github :repo "D4lj337/Mini-essays")
+  :hook (org-mode . mini-essays-setup)
+  :custom
+  (mini-essays-max-chars 4000)
+  (mini-essays-fill-column 72))
+
+;; Setup auto-insert separately
+(with-eval-after-load 'mini-essays
+  (mini-essays-setup-auto-insert))
+#+END_SRC
+
+** Elpaca
+
+#+BEGIN_SRC emacs-lisp
+(use-package mini-essays
+  :ensure (:host github :repo "D4lj337/Mini-essays" :files ("*.el"))
+  :hook (org-mode . mini-essays-setup)
+  :custom
+  (mini-essays-max-chars 4000)
+  (mini-essays-fill-column 72))
+
+;; Setup auto-insert separately
+(with-eval-after-load 'mini-essays
+  (mini-essays-setup-auto-insert))
+#+END_SRC
+
+* Usage
+
+** Basic Workflow
+
+1. Create a new file matching the pattern =mini*.org= (e.g., =mini-thesis.org=, =mini001.org=)
+2. The auto-insert template will prompt for metadata
+3. =mini-essays-mode= activates automatically
+4. Write within the enforced limit
+5. Export with statistics when finished
+
+** Interactive Commands
+
+| Keybinding | Command                           | Description                       |
+|------------+-----------------------------------+-----------------------------------|
+| =C-c m p=  | =mini-essays-set-profile=         | Change character limit profile    |
+| =C-c m t=  | =mini-essays-toggle-limit-type=   | Switch between chars/words        |
+| =C-c m e=  | =mini-essays-export-with-stats=   | Add completion statistics         |
+| =M-x=      | =mini-essays-mode=                | Toggle mode manually              |
+
+** File Pattern Matching
+
+By default, mini-essays mode activates for files matching:
+- =mini*.org= (e.g., =mini001.org=, =mini-draft.org=)
+- Anywhere in the file path
+
+Customize with:
+#+BEGIN_SRC emacs-lisp
+(setq mini-essays-file-pattern "\\(?:/\\|\\`\\)essay[^/]*\\.org\\'")
+#+END_SRC
+
+* Customization
+
+** Available Options
+
+#+BEGIN_SRC emacs-lisp
+;; Character limits
+(setq mini-essays-max-chars 4000)          ; Default: 4000
+(setq mini-essays-max-words 500)           ; Default: 500
+
+;; Limit type: 'characters or 'words
+(setq mini-essays-limit-type 'characters)  ; Default: 'characters
+
+;; Visual settings
+(setq mini-essays-fill-column 72)          ; Default: 72
+(setq mini-essays-warning-threshold 80)    ; Default: 80%
+(setq mini-essays-critical-threshold 95)   ; Default: 95%
+
+;; Custom profiles
+(setq mini-essays-profiles
+      '((tiny . 250)
+        (micro . 500)
+        (mini . 2000)
+        (short . 4000)
+        (essay . 8000)))
+#+END_SRC
+
+** Example Configuration
+
+#+BEGIN_SRC emacs-lisp
+(use-package mini-essays
+  :hook (org-mode . mini-essays-setup)
+  :custom
+  ;; Set stricter limits for focused writing
+  (mini-essays-max-chars 1500)
+  (mini-essays-fill-column 80)
+  (mini-essays-warning-threshold 75)
+  (mini-essays-critical-threshold 90)
+  
+  ;; Add custom profiles
+  (mini-essays-profiles '((tweet . 280)
+                          (abstract . 250)
+                          (paragraph . 500)
+                          (page . 2000)))
+  
+  :config
+  (mini-essays-setup-auto-insert)
+  
+  ;; Custom file pattern for "essay-*.org"
+  (setq mini-essays-file-pattern "\\(?:/\\|\\`\\)essay-[^/]*\\.org\\'"))
+#+END_SRC
+
+* Examples
+
+** Creating a Thesis Statement (250 chars)
+
+#+BEGIN_SRC org
+#+title: Thesis Draft
+#+author: Jane Doe
+#+date: 2025-10-22
+#+options: toc:nil num:nil
+#+property: reference: Essay Assignment #3
+#+property: limit: 250
+
+,* Draft
+
+Climate change mitigation requires immediate policy intervention combining 
+carbon taxation, renewable energy subsidies, and international cooperation 
+frameworks to limit warming below 2°C by 2050.
+#+END_SRC
+
+** With Statistics Export
+
+#+BEGIN_SRC org
+,* Draft
+
+[Your essay content here...]
+
+---
+*Statistics:* 183 words, 1247 chars, ~1 min read
+*Completed:* 2025-10-22 14:32
+#+END_SRC
+
+* Tips for Effective Mini Essays
+
+1. *Start with an outline*: Plan structure before writing
+2. *Embrace the constraint*: Use limits to sharpen your argument
+3. *Edit ruthlessly*: Every word must earn its place
+4. *Use profiles strategically*: Match limit to assignment type
+5. *Review statistics*: Track improvement in conciseness over time
+
+* Troubleshooting
+
+** Mode not activating automatically
+- Verify file name matches pattern (=mini*.org=)
+- Check hook installation: =(add-hook 'org-mode-hook #'mini-essays-setup)=
+- Manually toggle: =M-x mini-essays-mode=
+
+** Character counter not updating
+- Ensure mode is active (check mode line for "Mini")
+- Try force refresh: =M-x mini-essays-mode= twice (off/on)
+
+** Auto-insert not working
+- Confirm auto-insert is enabled: =(auto-insert-mode 1)=
+- Run setup: =M-x mini-essays-setup-auto-insert=
+- Check query setting: =(setq auto-insert-query nil)=
+
+* Acknowledgments
+
+Inspired by the pedagogical work on microthemes and low-stakes writing by composition scholars. Special thanks to the Org-mode and Emacs communities for their foundational tools.
+
+* License
+
+This project is licensed under the GNU General Public License v3.0 - see the [[LICENSE][LICENSE]] file for details.
+
+#+BEGIN_CENTER
+---
+*Happy focused writing! ✍️*
+#+END_CENTER
+
+
+
+
